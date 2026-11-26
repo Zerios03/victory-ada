@@ -1077,6 +1077,12 @@ mod tests {
             eprintln!("no host depth bounds support; skipped");
             return;
         }
+        // The software adapter reports depth bounds and does not honour them,
+        // so there is nothing here to check on it (see `Host::software_adapter`).
+        if host.software_adapter() {
+            eprintln!("the software adapter does not gate draws by depth bounds; skipped");
+            return;
+        }
         let Some(dxc) = dxc() else {
             eprintln!("no PC dxc.exe; skipped");
             return;

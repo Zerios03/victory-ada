@@ -4356,6 +4356,19 @@ impl Host {
         })
     }
 
+    /// Whether the host device is Windows' software adapter. Its answers
+    /// about optional features are not a card's: on the adapter a CI runner
+    /// without a GPU gets, [`Self::depth_bounds`] says yes and a draw with
+    /// `OMSetDepthBounds` is not gated (the depth-bounds test of
+    /// `pipeline::host`, 2026-11-26).
+    #[cfg(test)]
+    pub(crate) fn software_adapter(&self) -> bool {
+        self.adapter
+            .as_ref()
+            .and_then(|a| unsafe { a.GetDesc1() }.ok())
+            .is_some_and(|d| d.Flags & DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32 != 0)
+    }
+
     /// A new list, open for recording.
     pub(crate) fn new_list(&self) -> windows::core::Result<HostList> {
         #[cfg(feature = "diagnostics")]
