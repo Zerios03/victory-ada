@@ -50,6 +50,53 @@ Tested on one machine: Windows 11, Intel i7-14700KF, NVIDIA RTX 4070 12 GB,
 | Stability | **the card is lost after 30 to 50 minutes of play**: Windows reports the device removed (0x887A0005) with no driver event and no freeze, twice (runs 277 and 279); once a hang after 6 minutes with two driver events (run 276). Cause not known. In the tree to find it: crash tracing cheap enough to leave on (`VICTORY_D3D12_DRED=faults`), the memory at the moment of a loss, and a cap on oversized constant views (an invalid call another tester's card answered with a removal) |
 | Memory | about 23 to 27 GB of the PC's 32 GB and 9.2 to 9.6 GB of the card's 10.3 GB budget while playing |
 
+## Testers wanted
+
+This fork is worked on without the game: the code is written and unit-tested
+here, and every number above came from somebody else's PC running it. That is
+now the bottleneck. A run takes 15 to 40 minutes, needs no build skill beyond
+two commands, and gives back a log file; nothing about the game is sent
+anywhere (see `docs/asset-policy.md`).
+
+What is most useful, in order:
+
+- **An NVIDIA card with 12 GB or more** (16 GB is better). The card is lost
+  after 30 to 50 minutes of play here (0x887A0005, cause unknown), and the
+  upload and descriptor paths that cost the frame are shaped by NVIDIA limits
+  (a 1,000,000-view heap, a 64 KiB constant view cap). A 16 GB card would also
+  say whether the texture churn in the memory line is a card-memory problem.
+- **32 GB of RAM or more** (64 GB for the memory work). The title uses 23 to
+  27 GB; on a smaller PC the paging file decides whether it boots at all.
+- **A second opinion on AMD.** This fork has never run on RDNA3/4. The
+  7900 XTX fork reports 50 to 75 ms frames from the opening through the boat
+  mission, where this one reports 86 to 110 ms in its first rooms and on the
+  water; a card of that family is the cheapest way to find out which of the
+  differences are the port and which are the vendor.
+
+Requirements: Windows 11 x64, a CPU with AVX2, Direct3D 12 with shader model
+6.6 and mesh shaders, your own copy of the title, and the ability to play the
+opening to the first rooms (about 20 minutes; a save from a previous run is
+fine and shorter).
+
+A run is:
+
+```powershell
+cargo build --profile diag -p victory --features diagnostics
+$env:VICTORY_LOG = "info"
+$env:VICTORY_D3D12_DRED = "faults"
+target\diag\victory.exe run <game dir>\<the title's exe> --execute
+```
+
+with the switch set in [diagnostics/README.md](diagnostics/README.md), then the
+same place in the story as last time, and the lines named there copied out.
+Two runs, one with a switch and one without, are worth more than any opinion
+about how it felt. Builds and switch sets under test are listed in
+[docs/fork-roadmap.md](docs/fork-roadmap.md).
+
+Open an issue titled `run: <card> <CPU> <RAM>` with the log lines and the
+frame line; a `crashes.log` from a lost card is the most valuable thing this
+fork can get right now.
+
 ### Newest (2026-11-26, 00:00 UTC)
 
 **Written and unit-tested, not yet measured in a game. Every switch here is off by default; the
