@@ -1,82 +1,91 @@
-# VIctory fork (work in progress)
+# VIctory-ada
 
-A work-in-progress fork of [VIctory](https://github.com/Marvisak/VIctory), a
-compatibility layer that runs an Xbox Series title natively on Windows from
-files the user supplies. This fork follows upstream
-`main` and adds fixes aimed at one goal: getting the game's world to render
-correctly and playably on one particular PC.
+A fork of [VIctory](https://github.com/Marvisak/VIctory) — the compatibility layer that
+runs an Xbox Series title natively on Windows, from files you supply — worked on in one
+place: the frame time, on NVIDIA cards, with every number attached to a run.
 
-**This repository contains no game files, code or assets.** You need your own
-copy of the game. It is not affiliated with or endorsed by the game's
-developer or publisher.
+**This repository contains no game files, code or assets.** You need your own copy of the
+title. It is not affiliated with or endorsed by its developer or publisher.
 
-## Credits
+| | |
+|---|---|
+| **State** | playable in sessions of about half an hour, slowly: **9 to 12 fps** where the console runs 30 |
+| **Played so far** | from the opening cutscene, through the prologue, past the first boat mission |
+| **What limits it** | the thread that prepares submissions, not the card: the card idles 12 to 40 ms of every frame |
+| **What blocks a long session** | the card is lost after 30 to 50 minutes (Windows reports the device removed, `0x887A0005`); cause not known |
+| **Needs** | Windows 11 x64, a CPU with AVX2, Direct3D 12 with shader model 6.6 and mesh shaders |
+| **Measured on** | Intel i7-14700KF, NVIDIA RTX 4070 12 GB, 32 GB RAM |
+| **Test status** | clippy is green in both feature sets; the suite fails on 1 to 3 GPU-dependent tests on GitHub's GPU-less runner, all of them inherited from upstream, and which of them fail moves between runs |
+| **Upstream** | follows [`fxceless/victory-fork`](https://github.com/fxceless/victory-fork) `main`; this fork's work is on `main` here |
 
-- **[VIctory](https://github.com/Marvisak/VIctory)** by Marvisak and its
-  contributors is the base of everything here: the loader, the runtime
-  services, the Direct3D 12 back end and the shader recompiler. Licensed
-  GPL-3.0-or-later; so is this fork. Upstream's history is kept intact below
-  the single commit that carries this fork's changes.
-- **[XCL](https://github.com/ivall/xcl)** by ivall and its contributors
-  (GPL-2.0-only) was used as a reference for how the same title behaves under
-  another layer. Fixes inspired by it were written anew in VIctory's code.
-- The guard over every view of a memory page is code by **myokex**
-  ([victory-amd](https://github.com/myokex/victory-amd), commit `c6dc4d8`), which
-  adapts pull request #115 here by Spexivus, its correction by joroyt and a part of
-  VIctory #1122 by tightfall. The read-beside fix for kernel reads into title
-  memory is by **Joshua Odom** (commit `10ea38e` of the same fork family). Both
-  are carried here unchanged apart from one merge conflict.
-- This fork's changes were developed with [Claude Code](https://claude.com/claude-code).
+## Benchmarks
 
-## Status of this fork (2026-11-26, 00:00 UTC)
+Taken with the diagnostics profile and the switch set in
+[diagnostics/README.md](diagnostics/README.md) plus `VICTORY_CARD_HASH_LEN=1`, at the same
+point in the story each time, read off the frame line. The story beats are what matter, not
+the seconds: two runs at the same place in the story are worth more than any impression.
 
-**Playable for half an hour at a time, slowly: about 7 to 12 frames per second (the console runs
-30). The tester has played from the opening through the prologue and past the first boat mission.
-Then the graphics card is lost: four times, in sessions of 6, 49, 31 and 38 minutes, the last three
-on the way to the same place in the story, before the title's next save point. Cause not known
-yet. Shadowed areas are still black.**
-Tested on one machine: Windows 11, Intel i7-14700KF, NVIDIA RTX 4070 12 GB,
-32 GB RAM. The Series X profile is used throughout.
+Rows marked **TBD** are the measurements this fork is waiting on. Nothing is filled in from
+a guess.
 
-| Stage | State in this fork |
-|-------|--------------------|
-| Boot, menus, start screen | works, 30 fps (as upstream) |
-| Opening cutscene | plays from start to finish, in order, lit: title cards, credits cards, night and dusk shots |
-| Saves | the game autosaves a checkpoint and loads it again; test runs continue from the last checkpoint |
-| The prologue and the first missions | play: characters, textures, sky, sunlit exteriors, vehicles and boats; HUD, pause menu and pad input work. Played past the first boat mission (2026-11-25) |
-| Water | right since `VICTORY_TEXTURE_BACK=1` (pull request #999): boats float, the surface is lit (blue, waves, the sun's path). Without it boats sink and the mission fails |
-| Light in shadow | missing: the game's ray-traced bounce light and ray-traced lamp and sun shadows do not run yet, so anything the sun does not hit directly is black |
-| Frame rate in the world | **9 to 12 fps in rooms and light outdoor views**: 110 ms a frame in the first rooms at about 4,700 draws (run 275), 86 to 102 ms on the water at about 1,300 draws (run 279). **5 to 6 fps in heavy outdoor views** (160 to 208 ms at 7,200 to 9,700 draws). A frame is about 70 ms plus 13 ms per 1,000 draws: the thread that prepares submissions is the limit, the card idles 12 to 40 ms a frame. It started at 3 to 6 seconds a frame. Measured with the switch set in `diagnostics/README.md` plus `VICTORY_CARD_HASH_LEN=1`; the defaults are slower |
-| Stability | **the card is lost after 30 to 50 minutes of play**: Windows reports the device removed (0x887A0005) with no driver event and no freeze, twice (runs 277 and 279); once a hang after 6 minutes with two driver events (run 276). Cause not known. In the tree to find it: crash tracing cheap enough to leave on (`VICTORY_D3D12_DRED=faults`), the memory at the moment of a loss, and a cap on oversized constant views (an invalid call another tester's card answered with a removal) |
-| Memory | about 23 to 27 GB of the PC's 32 GB and 9.2 to 9.6 GB of the card's 10.3 GB budget while playing |
+| Build | Scene | Draws | Frame | fps | Status |
+|---|---|---|---|---|---|
+| this fork, first measured | first rooms | ~4,700 | 110 ms | 9 | measured (run 275) |
+| this fork, first measured | on the water | ~1,300 | 86 to 102 ms | 10 to 12 | measured (run 279) |
+| this fork, first measured | heavy outdoor | 7,200 to 9,700 | 160 to 208 ms | 5 to 6 | measured |
+| this fork, start of the work | first rooms | — | 3,000 to 6,000 ms | 0.2 to 0.3 | measured |
+| `VICTORY_STEP_INDEX=1` | first rooms | ~4,700 | **TBD** | **TBD** | switch written, never measured elsewhere |
+| `VICTORY_FILLS_PLAIN=1` | first rooms | ~4,700 | **TBD** | **TBD** | switch written, timed offline only |
+| `VICTORY_LIGHT_REFRESH=1` | first rooms / outdoor | — | **TBD** | **TBD** | ported from the AMD fork, unmeasured here |
+| thin submission stream | first rooms | ~4,700 | **TBD** | **TBD** | not written yet |
+| any build | two hours without a lost card | — | — | — | **TBD**, blocked on the device loss |
+
+For context only, and **not** this fork's measurement: the AMD fork
+[`avatarmanz/VIctory-7900XTX`](https://github.com/avatarmanz/VIctory-7900XTX) reports 50 to
+75 ms frames from the opening through the boat mission on an RX 7900 XTX, 64 GB RAM. That is
+where the target sits: the same story beats this fork reports at 86 to 110 ms.
+
+## Goals
+
+1. **The first rooms under 60 ms (16 fps), then under 33 ms (30 fps).** The console runs 30;
+   the card here idles most of a frame, so this is submission-path work first.
+2. **Two hours of play without a lost card.** Without this no measurement can run long
+   enough to compare two builds.
+3. **Shadowed areas lit.** The title's ray-traced bounce light and shadows do not run yet, so
+   anything the sun does not hit directly is black. This is the difference between "runs" and
+   "looks like the game".
+4. **Every number attached to a run.** Estimates are labelled as estimates until a log
+   carries them; that rule is what makes the repository useful to somebody who is not its
+   author.
+
+## What we are working on now
+
+| | |
+|---|---|
+| **Measuring what is already written** | seven switches are in the tree, off by default and unit-tested, and have never run on a card other than the one that wrote them. Two runs each, same story beat. Listed with the milliseconds each should buy — and whether that number is measured or an estimate — in [docs/fork-roadmap.md](docs/fork-roadmap.md). |
+| **The card loss** | four losses in sessions of 6, 49, 31 and 38 minutes, all `0x887A0005`, the last three on the way to the same place in the story. Tracing cheap enough to leave on is in the tree (`VICTORY_D3D12_DRED=faults`); what is needed is a `crashes.log` from a card that is not the one that produced the four. |
+| **A thin submission stream** | the layer's own lists cost 11.6 to 23.0 ms of card time a frame, most of it hashing whole 64 KiB blocks for small copies. This fork already has `VICTORY_ASYNC_SUBMIT`, `VICTORY_RELAY` and `VICTORY_LATE_WAIT`; the next step is carrying only what changed. |
+| **Not now** | shader micro-optimisation. The RDNA3 fork measured its float shortcuts at 0.4 ms of a 36.6 ms frame; the clean-up passes already in this tree are worth about 20 ms of card time, and they are in. |
 
 ## Testers wanted
 
-This fork is worked on without the game: the code is written and unit-tested
-here, and every number above came from somebody else's PC running it. That is
-now the bottleneck. A run takes 15 to 40 minutes, needs no build skill beyond
-two commands, and gives back a log file; nothing about the game is sent
-anywhere (see `docs/asset-policy.md`).
+This fork is worked on without the game: code is written and reviewed here, and every number
+above came from somebody else's PC running it. That is now the bottleneck. A run takes 15 to
+40 minutes and gives back a log file; nothing about the game is sent anywhere (see
+[docs/asset-policy.md](docs/asset-policy.md)).
 
-What is most useful, in order:
+| | Minimum | Better |
+|---|---|---|
+| GPU | **NVIDIA, 12 GB of video memory** | 16 GB — would say whether the texture churn is a card-memory problem |
+| RAM | 32 GB | 64 GB, for the memory work |
+| OS | Windows 11 x64 | — |
+| CPU | any with AVX2 | 8 cores or more |
+| Game | your own copy, played to the first rooms | a save past the boat mission: shorter runs |
+| Time | 15 minutes a run | two runs back to back, one with a switch and one without |
 
-- **An NVIDIA card with 12 GB or more** (16 GB is better). The card is lost
-  after 30 to 50 minutes of play here (0x887A0005, cause unknown), and the
-  upload and descriptor paths that cost the frame are shaped by NVIDIA limits
-  (a 1,000,000-view heap, a 64 KiB constant view cap). A 16 GB card would also
-  say whether the texture churn in the memory line is a card-memory problem.
-- **32 GB of RAM or more** (64 GB for the memory work). The title uses 23 to
-  27 GB; on a smaller PC the paging file decides whether it boots at all.
-- **A second opinion on AMD.** This fork has never run on RDNA3/4. The
-  7900 XTX fork reports 50 to 75 ms frames from the opening through the boat
-  mission, where this one reports 86 to 110 ms in its first rooms and on the
-  water; a card of that family is the cheapest way to find out which of the
-  differences are the port and which are the vendor.
-
-Requirements: Windows 11 x64, a CPU with AVX2, Direct3D 12 with shader model
-6.6 and mesh shaders, your own copy of the title, and the ability to play the
-opening to the first rooms (about 20 minutes; a save from a previous run is
-fine and shorter).
+A second opinion on **RDNA3/4** is worth as much as a faster NVIDIA card: this fork has never
+run on AMD, and the 7900 XTX numbers above are the reason to find out which differences are
+the port and which are the vendor.
 
 A run is:
 
@@ -87,15 +96,55 @@ $env:VICTORY_D3D12_DRED = "faults"
 target\diag\victory.exe run <game dir>\<the title's exe> --execute
 ```
 
-with the switch set in [diagnostics/README.md](diagnostics/README.md), then the
-same place in the story as last time, and the lines named there copied out.
-Two runs, one with a switch and one without, are worth more than any opinion
-about how it felt. Builds and switch sets under test are listed in
-[docs/fork-roadmap.md](docs/fork-roadmap.md).
+with the switch set in [diagnostics/README.md](diagnostics/README.md), at the same place in
+the story as last time.
 
-Open an issue titled `run: <card> <CPU> <RAM>` with the log lines and the
-frame line; a `crashes.log` from a lost card is the most valuable thing this
-fork can get right now.
+Send back, in an issue titled `run: <card> <CPU> <RAM>`:
+
+- the frame line (`framelog: usual frame`) and the `copies per frame` line;
+- the switch set you used and the commit you built (`git rev-parse --short HEAD`);
+- on a lost card, `crashes.log` — the most valuable thing this fork can get right now.
+
+
+## Progress
+
+What this fork has changed so far, in one list. The dated entries below it, with the
+numbers of each run, follow in [Changelog](#changelog).
+
+Rendering:
+- Meshlet culling read its scene buffers as the wrong kind of view, so the world drew almost nothing; fixed.
+- Per-draw descriptor tables could run out, after which draws used slots never made for them and the card hung; fixed.
+- Light packed by the game's compute shaders was read back through empty copies (sky, probes, fog); fixed for every mip level and layer.
+- The fog reconstruction, shadow-mask, hair, blend-shape skinning, fire and several material programs did not translate; fixed.
+- Gathers at a named mip level (with and without an offset) read level 0; fixed.
+- Implicit-level samples outside pixel shaders produced invalid DXIL in 730 compute programs; fixed.
+- Rectangle lists, depth and stencil twins for depth textures written by compute, texture read-backs.
+- Ray tracing, in progress and off by default: the game's own structure-builder programs translate, title memory can be read by raw address from shaders, the hardware ray/box and ray/triangle test is emulated in DXIL (checked against a reference on the GPU), and 59 of the 64 trace programs translate. Nothing is lit by it yet. See [docs/fork-ray-tracing.md](docs/fork-ray-tracing.md).
+
+Speed and memory:
+- Waits for memory values, write-watch queries and page queries no longer walk page tables per call.
+- Large title buffers get a copy in card memory, with shader writes found by hashing on the card.
+- Submissions can be sent ahead of the wait for the card (`VICTORY_LATE_WAIT`), with a relay thread that lands results as the card finishes (`VICTORY_RELAY`): in a first five-minute run the card's idle time behind the submitting thread fell from about 136 to 30 ms per frame.
+- Title memory can be opened as a graphics heap so that buffers are used in place instead of copied (`VICTORY_INPLACE`, first stage only; a probe confirmed the approach on the test GPU).
+- The bindless texture queue no longer uploads stale views; the view table no longer grows without bound; the pipeline library is mapped instead of read into memory.
+- An intermittent device loss was traced to the pipeline library file being replaced while mapped; fixed. A library the driver rejects is kept under another name and never saved over.
+
+- Translated shaders get clean-up passes over the finished module (dead code, constant folding, reuse of values, branch facts); the pack's host instruction count falls by about 43 %, worth about 20 ms of GPU time per frame on the test machine (`VICTORY_SHADER_OPT=0` turns them off).
+
+Most of the newer speed changes sit behind environment switches that are off
+by default (`VICTORY_LATE_WAIT`, `VICTORY_RELAY`, `VICTORY_WIDE_BACK`,
+`VICTORY_CARD_BUFFERS_MIN_MB`, `VICTORY_INPLACE`, `VICTORY_BVH_BUILDER`, ...).
+Each is described in a comment where it is read.
+
+## Known problems
+
+- Everything in shadow is black (see above).
+- The interior of the first gameplay room is sometimes not drawn after the cutscene hands over to gameplay.
+- Around 24 GB of memory is in use during play, about 16 GB of it in memory: the 32 GB test PC has about 1 to 5 GB free, and the 12 GB card is nearly full, so textures are let go and made again for lack of room.
+- A few style lints are switched off for this fork in the workspace `Cargo.toml` until the newer code is tidied.
+- Many changes here are specific to this title and this GPU, and some are marked `shortcut:` in the code where they approximate what the console does.
+
+## Changelog
 
 ### Newest (2026-11-26, 00:00 UTC)
 
@@ -646,40 +695,30 @@ Tools and diagnostics:
   copy-backs), `VICTORY_WALLS_TRACE`, `VICTORY_CARD_ACCOUNTING`, and a census
   of the copies the texture sweep never lets go.
 
-### What this fork changed (summary)
+## Credits
 
-Rendering:
-- Meshlet culling read its scene buffers as the wrong kind of view, so the world drew almost nothing; fixed.
-- Per-draw descriptor tables could run out, after which draws used slots never made for them and the card hung; fixed.
-- Light packed by the game's compute shaders was read back through empty copies (sky, probes, fog); fixed for every mip level and layer.
-- The fog reconstruction, shadow-mask, hair, blend-shape skinning, fire and several material programs did not translate; fixed.
-- Gathers at a named mip level (with and without an offset) read level 0; fixed.
-- Implicit-level samples outside pixel shaders produced invalid DXIL in 730 compute programs; fixed.
-- Rectangle lists, depth and stencil twins for depth textures written by compute, texture read-backs.
-- Ray tracing, in progress and off by default: the game's own structure-builder programs translate, title memory can be read by raw address from shaders, the hardware ray/box and ray/triangle test is emulated in DXIL (checked against a reference on the GPU), and 59 of the 64 trace programs translate. Nothing is lit by it yet. See [docs/fork-ray-tracing.md](docs/fork-ray-tracing.md).
-
-Speed and memory:
-- Waits for memory values, write-watch queries and page queries no longer walk page tables per call.
-- Large title buffers get a copy in card memory, with shader writes found by hashing on the card.
-- Submissions can be sent ahead of the wait for the card (`VICTORY_LATE_WAIT`), with a relay thread that lands results as the card finishes (`VICTORY_RELAY`): in a first five-minute run the card's idle time behind the submitting thread fell from about 136 to 30 ms per frame.
-- Title memory can be opened as a graphics heap so that buffers are used in place instead of copied (`VICTORY_INPLACE`, first stage only; a probe confirmed the approach on the test GPU).
-- The bindless texture queue no longer uploads stale views; the view table no longer grows without bound; the pipeline library is mapped instead of read into memory.
-- An intermittent device loss was traced to the pipeline library file being replaced while mapped; fixed. A library the driver rejects is kept under another name and never saved over.
-
-- Translated shaders get clean-up passes over the finished module (dead code, constant folding, reuse of values, branch facts); the pack's host instruction count falls by about 43 %, worth about 20 ms of GPU time per frame on the test machine (`VICTORY_SHADER_OPT=0` turns them off).
-
-Most of the newer speed changes sit behind environment switches that are off
-by default (`VICTORY_LATE_WAIT`, `VICTORY_RELAY`, `VICTORY_WIDE_BACK`,
-`VICTORY_CARD_BUFFERS_MIN_MB`, `VICTORY_INPLACE`, `VICTORY_BVH_BUILDER`, ...).
-Each is described in a comment where it is read.
-
-### Known problems
-
-- Everything in shadow is black (see above).
-- The interior of the first gameplay room is sometimes not drawn after the cutscene hands over to gameplay.
-- Around 24 GB of memory is in use during play, about 16 GB of it in memory: the 32 GB test PC has about 1 to 5 GB free, and the 12 GB card is nearly full, so textures are let go and made again for lack of room.
-- A few style lints are switched off for this fork in the workspace `Cargo.toml` until the newer code is tidied.
-- Many changes here are specific to this title and this GPU, and some are marked `shortcut:` in the code where they approximate what the console does.
+- **[VIctory](https://github.com/Marvisak/VIctory)** by Marvisak and its contributors is the
+  base of everything here: the loader, the runtime services, the Direct3D 12 back end and the
+  shader recompiler. Licensed GPL-3.0-or-later; so is this fork. Upstream's history is kept
+  intact below the single commit that carries this fork's changes.
+- **[fxceless/victory-fork](https://github.com/fxceless/victory-fork)** is the fork this one is
+  cut from. The rendering fixes, the card-memory work and the measuring instruments behind
+  [Progress](#progress) are its author's, and so is the test machine every measured number above
+  comes from. What this fork has added since 2026-11-26 sits on top of that tree.
+- **[XCL](https://github.com/ivall/xcl)** by ivall and its contributors (GPL-2.0-only) was used
+  as a reference for how the same title behaves under another layer. Fixes inspired by it were
+  written anew in VIctory's code.
+- The guard over every view of a memory page is code by **myokex**
+  ([victory-amd](https://github.com/myokex/victory-amd), commit `c6dc4d8`), which adapts pull
+  request #115 here by Spexivus, its correction by joroyt and a part of VIctory #1122 by
+  tightfall. The read-beside fix for kernel reads into title memory is by **Joshua Odom**
+  (commit `10ea38e` of the same fork family). Both are carried here unchanged apart from one
+  merge conflict.
+- **[avatarmanz/VIctory-7900XTX](https://github.com/avatarmanz/VIctory-7900XTX)** contributes no
+  code here, but its findings are read as a map of where the frame time goes: a thin command
+  stream, deferred lists, a landing thread, texture uploads on the copy queue. Its frame times
+  are its own, measured on an RX 7900 XTX, and are quoted above only for comparison.
+- This fork's changes were developed with [Claude Code](https://claude.com/claude-code).
 
 Everything below this line is upstream VIctory's own README, unchanged; its
 status section describes upstream, not this fork.
